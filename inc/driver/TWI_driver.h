@@ -27,9 +27,22 @@
 #define TWI_SEND_NACK            7
 #define TWI_BUSY                 8
 #define TWI_ERROR_TIMEOUT        9
+/*----------------------------------------------------------------------------
+ *        Macros
+ *----------------------------------------------------------------------------*/
+/* Returns 1 if the TXRDY bit (ready to transmit data) is set in the given status register value.*/
+#define TWI_STATUS_TXRDY(status) (((status) & TWI_SR_TXRDY) == TWI_SR_TXRDY)
+
+/* Returns 1 if the RXRDY bit (ready to receive data) is set in the given status register value.*/
+#define TWI_STATUS_RXRDY(status) (((status) & TWI_SR_RXRDY) == TWI_SR_RXRDY)
+
+/* Returns 1 if the TXCOMP bit (transfer complete) is set in the given status register value.*/
+#define TWI_STATUS_TXCOMP(status) (((status) & TWI_SR_TXCOMP) == TWI_SR_TXCOMP)
 
 #define FAIL 0
 #define PASS 1
+
+
 
 /* Low level time limit of I2C Fast Mode. */
 #define LOW_LEVEL_TIME_LIMIT 384000
@@ -58,16 +71,29 @@ typedef struct twi_options {
  */
 typedef struct twi_packet {
 	//! TWI address/ to issue to the other chip (node).
-	uint8_t addr[3];
+	uint8_t iaddr[3];
 	//! Length of the TWI data address segment (1-3 bytes).
-	uint32_t addr_length;
+	uint32_t iaddr_length;
 	//! Where to find the data to be transferred.
-	void *buffer;
+	uint8_t *buffer;
 	//! How many bytes do we want to transfer.
 	uint32_t length;
 	//! TWI chip address to communicate with.
 	uint8_t chip_addr;
 } twi_packet_t;
+
+// TWI state
+typedef	enum TwoWireStatus {
+		UNINITIALIZED,
+		MASTER_IDLE,
+		MASTER_SEND,
+		MASTER_RECV,
+		SLAVE_IDLE,
+		SLAVE_RECV,
+		SLAVE_SEND
+	}TwoWireStatus_t;
+	
+TwoWireStatus_t status;
 
 void twi_enable_master_mode(Twi *p_twi);
 void twi_disable_master_mode(Twi *p_twi);
@@ -80,6 +106,11 @@ uint32_t twi_mk_addr(const uint8_t *addr, int len);
 uint32_t twi_master_init(Twi *p_twi, const twi_options_t *p_opt);
 uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet);
 uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet);
+void	 twi_start_read( Twi *p_twi,  const twi_packet_t *p_packet);
+void	 twi_start_write( Twi *p_twi,  const twi_packet_t *p_packet, uint8_t byte);
+
+
+uint32_t twi_master_config(Twi *p_twi, const twi_options_t *p_opt);
 
 void twi_enable_interrupt(Twi *p_twi, uint32_t ul_sources);
 void twi_disable_interrupt(Twi *p_twi, uint32_t ul_sources);
@@ -95,15 +126,23 @@ void twi_disable_slave_mode(Twi *p_twi);
 
 void twi_reset(Twi *p_twi);
 
+void Send_Stop(Twi* p_twi);
 
+uint8_t twi_ByteReceived(Twi *pTwi);
+uint8_t twi_ByteSent(Twi *pTwi);
+uint8_t TWI_TransferComplete(Twi *pTwi);
 
+uint32_t twi_GetStatus(Twi *pTwi);
 
+uint8_t twi_FailedAcknowledge(Twi *pTwi);
+uint8_t twi_WaitTransferComplete(Twi *_twi, uint32_t _timeout);
+uint8_t twi_WaitByteSent(Twi *_twi, uint32_t _timeout);
+uint8_t twi_WaitByteReceived(Twi *_twi, uint32_t _timeout);
 
-
-
-
-
-
-
+uint8_t twi_STATUS_SVREAD(uint32_t status);
+uint8_t twi_STATUS_SVACC(uint32_t status);
+uint8_t twi_STATUS_GACC(uint32_t status);
+uint8_t twi_STATUS_EOSACC(uint32_t status);
+uint8_t twi_STATUS_NACK(uint32_t status);
 
 #endif /* TWI_DRIVER_H_ */

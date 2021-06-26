@@ -14,9 +14,11 @@ void (*ptr_get)(void volatile*, char*);
 
 
 
-int _read (int file, char * ptr, int len); // Remove GCC compiler warning
+int 
+_read (int file, char * ptr, int len); // Remove GCC compiler warning
 
-int _read (int file, char * ptr, int len)
+int 
+_read (int file, char * ptr, int len)
 {
 	int nChars = 0;
 

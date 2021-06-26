@@ -6,6 +6,8 @@
  */ 
 #include "TWI_driver.h"
 
+
+
 /**
  * \brief Enable TWI master mode.
  *
@@ -179,11 +181,11 @@ uint32_t twi_probe(Twi *p_twi, uint8_t uc_slave_addr)
 	/* Data length */
 	packet.length = 1;
 	/* Slave chip address */
-	packet.chip_addr = (uint32_t) uc_slave_addr;
+	packet.chip_addr = uc_slave_addr;
 	/* Internal chip address */
-	packet.addr[0] = 0;
+	packet.iaddr[0] = 0;
 	/* Address length */
-	packet.addr_length = 0;
+	packet.iaddr_length = 0;
 
 	/* Perform a master write access */
 	return (twi_master_write(p_twi, &packet));
@@ -241,12 +243,12 @@ uint32_t twi_master_read(Twi *p_twi, twi_packet_t *p_packet)
     // Set read mode, slave address and internal reg address
     p_twi->TWI_MMR = 0;
     p_twi->TWI_MMR = TWI_MMR_MREAD | TWI_MMR_DADR(p_packet->chip_addr) |
-        (( p_packet->addr_length << TWI_MMR_IADRSZ_Pos ) & 
+        (( p_packet->iaddr_length << TWI_MMR_IADRSZ_Pos ) & 
         TWI_MMR_DADR_Msk);
 
     p_twi->TWI_IADR = 0;
-    p_twi->TWI_IADR = twi_mk_addr(p_packet->addr, 
-                                p_packet->addr_length);
+    p_twi->TWI_IADR = twi_mk_addr(p_packet->iaddr, 
+                                p_packet->iaddr_length);
     
     // SEND START
 
@@ -313,12 +315,11 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 	/* Set write mode, slave address and 3 internal address byte lengths */
 	p_twi->TWI_MMR = 0;
 	p_twi->TWI_MMR = TWI_MMR_DADR(p_packet->chip_addr) |
-			((p_packet->addr_length << TWI_MMR_IADRSZ_Pos) &
-			TWI_MMR_IADRSZ_Msk);
+			((p_packet->iaddr_length << TWI_MMR_IADRSZ_Pos) & TWI_MMR_IADRSZ_Msk);
 
 	/* Set internal address for remote chip */
 	p_twi->TWI_IADR = 0;
-	p_twi->TWI_IADR = twi_mk_addr(p_packet->addr, p_packet->addr_length);
+	p_twi->TWI_IADR = twi_mk_addr(p_packet->iaddr, p_packet->iaddr_length);
 
 	/* Send all bytes */
 	while (cnt > 0) {
@@ -346,10 +347,9 @@ uint32_t twi_master_write(Twi *p_twi, twi_packet_t *p_packet)
 		}
 	}
 
-	p_twi->TWI_CR = TWI_CR_STOP;
+	p_twi->TWI_CR = TWI_CR_STOP; /*STOP*/
 
-	while (!(p_twi->TWI_SR & TWI_SR_TXCOMP)) {
-	}
+	while (!(p_twi->TWI_SR & TWI_SR_TXCOMP));
 
 	return TWI_SUCCESS;
 }
@@ -463,17 +463,167 @@ void twi_reset(Twi *p_twi)
 	/* Set SWRST bit to reset TWI peripheral */
 	p_twi->TWI_CR = TWI_CR_SWRST;
 	p_twi->TWI_RHR;
+
+}
+
+/**
+ * \brief Sends Stop (p) signal
+ * 
+ */
+void Send_Stop(Twi* p_twi)
+{
+    p_twi->TWI_CR = TWI_CR_STOP;
+}
+
+uint32_t twi_master_config(Twi *p_twi, const twi_options_t *p_opt)
+{
+	/* SVEN: TWI Slave Mode Enabled */
+    p_twi->TWI_CR = TWI_CR_SVEN ;
+
+    twi_reset(p_twi);
+
+    /* Set master mode */
+    p_twi->TWI_CR = TWI_CR_MSEN ;
+
+    /* Configure clock */
+    twi_set_speed(p_twi, p_opt->speed, p_opt->master_clk);
+}
+
+/**
+ * \brief Start read operation as master
+ * 
+ */
+void twi_start_read( Twi *p_twi,  const twi_packet_t *p_packet)
+{
+	p_twi->TWI_MMR = 0;
+    p_twi->TWI_MMR = TWI_MMR_MREAD | TWI_MMR_DADR(p_packet->chip_addr) |
+        (( p_packet->iaddr_length << TWI_MMR_IADRSZ_Pos ) & 
+        TWI_MMR_DADR_Msk);
+
+    p_twi->TWI_IADR = 0;
+    p_twi->TWI_IADR = twi_mk_addr(p_packet->iaddr, 
+                                p_packet->iaddr_length);
+
+	p_twi->TWI_CR = TWI_CR_START; // send start
+}
+
+/**
+ * \brief start write operation 
+ */
+void twi_start_write( Twi *p_twi,  const twi_packet_t *p_packet, uint8_t byte)
+{
+	p_twi->TWI_MMR = 0;
+	p_twi->TWI_MMR = TWI_MMR_DADR(p_packet->chip_addr) |
+			((p_packet->iaddr_length << TWI_MMR_IADRSZ_Pos) & TWI_MMR_IADRSZ_Msk);
+
+	/* Set internal address for remote chip */
+	p_twi->TWI_IADR = 0;
+	p_twi->TWI_IADR = twi_mk_addr(p_packet->iaddr, p_packet->iaddr_length);
+
+	twi_write_byte(p_twi, byte);
+
+}
+
+uint8_t twi_ByteReceived(Twi *pTwi)
+{
+	return ((pTwi->TWI_SR & TWI_SR_RXRDY) == TWI_SR_RXRDY);
 }
 
 
+uint8_t twi_ByteSent(Twi *pTwi)
+{
+	return ((pTwi->TWI_SR & TWI_SR_TXRDY) == TWI_SR_TXRDY);
+}
+
+uint8_t twi_TransferComplete(Twi *pTwi)
+{
+    return ((pTwi->TWI_SR & TWI_SR_TXCOMP) == TWI_SR_TXCOMP);
+}
+
+uint32_t twi_GetStatus(Twi *pTwi)
+{
+    return pTwi->TWI_SR;
+}
 
 
+uint8_t twi_FailedAcknowledge(Twi *pTwi)
+{
+	return pTwi->TWI_SR & TWI_SR_NACK;
+}
 
+uint8_t twi_WaitTransferComplete(Twi *_twi, uint32_t _timeout)
+{
+	uint32_t _status_reg = 0;
+	while ((_status_reg & TWI_SR_TXCOMP) != TWI_SR_TXCOMP) {
+		_status_reg = twi_GetStatus(_twi);
 
+		if (_status_reg & TWI_SR_NACK)
+			return 0;
 
+		if (--_timeout == 0)
+			return 0;
+	}
+	return 1;
+}
 
+uint8_t twi_WaitByteSent(Twi *_twi, uint32_t _timeout)
+{
+	uint32_t _status_reg = 0;
+	while ((_status_reg & TWI_SR_TXRDY) != TWI_SR_TXRDY) {
+		_status_reg = twi_GetStatus(_twi);
 
+		if (_status_reg & TWI_SR_NACK)
+			return 0;
 
+		if (--_timeout == 0)
+			return 0;
+	}
+
+	return 1;
+}
+
+uint8_t twi_WaitByteReceived(Twi *_twi, uint32_t _timeout)
+{
+	uint32_t _status_reg = 0;
+	while ((_status_reg & TWI_SR_RXRDY) != TWI_SR_RXRDY) {
+		_status_reg = twi_GetStatus(_twi);
+
+		if (_status_reg & TWI_SR_NACK)
+			return 0;
+
+		if (--_timeout == 0)
+			return 0;
+	}
+
+	return 1;
+}
+
+uint8_t twi_STATUS_SVREAD(uint32_t status)
+{
+	return ((status & TWI_SR_SVREAD) == TWI_SR_SVREAD);
+
+}
+
+uint8_t twi_STATUS_SVACC(uint32_t status)
+{
+	return (status & TWI_SR_SVACC) == TWI_SR_SVACC;
+}
+
+uint8_t twi_STATUS_GACC(uint32_t status)
+{
+	return (status & TWI_SR_GACC) == TWI_SR_GACC;
+}
+
+uint8_t twi_STATUS_EOSACC(uint32_t status)
+{
+	return (status & TWI_SR_EOSACC) == TWI_SR_EOSACC;
+}
+
+uint8_t twi_STATUS_NACK(uint32_t status)
+{
+	return (status & TWI_SR_NACK) == TWI_SR_NACK;
+
+}
 
 
 
