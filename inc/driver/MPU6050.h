@@ -4,7 +4,10 @@
  * Created: 02/01/2021 14:36:09
  *  Author: mmuca
  */ 
-
+#include "TWI_driver.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <math.h>
 
 #ifndef MPU6050_H_
 #define MPU6050_H_
@@ -387,9 +390,9 @@
 #define MPU6050_DMP_MEMORY_BANK_SIZE    256
 #define MPU6050_DMP_MEMORY_CHUNK_SIZE   16
 
-#include "TWI_driver.h"
-#include <stdio.h>
-#include <stdint.h>
+
+#define PRINT_SIZE 6
+
 typedef struct MPU_data
 {
     int16_t gyroX, gyroY, gyroZ;
@@ -397,15 +400,34 @@ typedef struct MPU_data
     float gForceX, gForceY, gForceZ;
     float rotX, rotY, rotZ;
 
+    float accAngleX, accAngleY;
+    float gyroAngleX, gyroAngleY, gyroAngleZ;
+    
+    float accErrorX, accErrorY;
+    float GyroErrorX, GyroErrorY, GyroErrorZ;
+
+    float roll,pitch,yaw;
+
 }MPU_data_t;
 
+void begin_TX(uint8_t addr);
+size_t write( uint8_t data );
+int read(void);
+uint8_t end_TX( Twi* ptwi);
 
-void setupMPU(void);
-void recordAccelRegisters(MPU_data_t*);
-void recordGyroRegisters(MPU_data_t*);
+
+void setupMPU(Twi* p_twi);
+void recordAccelRegisters(MPU_data_t*, Twi*);
+void recordGyroRegisters(MPU_data_t*, Twi*);
 void processGyroData(MPU_data_t*);
 void processAccelData(MPU_data_t*);
 void printData(MPU_data_t*);
+uint8_t reqFrom(uint8_t addr, uint8_t length, const twi_packet_t* p_packet, Twi* p_twi);
+void test_Connection(Twi*);
 
+void calculate_offset(Twi*, MPU_data_t* ,const uint16_t);
 
+void calculate_roll_pitch_yaw( MPU_data_t*, float );
+
+size_t print_Float(float, uint8_t);
 #endif /* MPU6050_H_ */

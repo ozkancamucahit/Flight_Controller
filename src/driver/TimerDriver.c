@@ -7,6 +7,22 @@
 
 #include "TimerDriver.h"
 
+#ifndef F_CPU
+#define F_CPU 84000000UL
+#endif
+
+static volatile uint32_t tick_count=0 ;
+/**
+ *  \brief Handler for Sytem Tick interrupt.
+ */
+extern void TimeTick_Increment( void )
+{
+    ++tick_count ;
+}
+extern uint32_t GetTickCount( void )
+{
+    return tick_count;
+}
 
 
 void tc_init(Tc *p_tc, uint32_t ul_Channel, uint32_t ul_Mode)
@@ -378,7 +394,30 @@ void tc_waveform_initialize(uint16_t us_id_TC, const waveconfig_t* wave,
 }
 
 
+uint32_t micros( void )
+{
+    uint32_t ticks, ticks2;
+    uint32_t pend, pend2;
+    uint32_t count, count2;
 
+    ticks2  = SysTick->VAL;
+    pend2   = !!((SCB->ICSR & SCB_ICSR_PENDSTSET_Msk)||((SCB->SHCSR & SCB_SHCSR_SYSTICKACT_Msk)))  ;
+    count2  = GetTickCount();
 
+    do {
+        ticks=ticks2;
+        pend=pend2;
+        count=count2;
+        ticks2  = SysTick->VAL;
+        pend2   = !!((SCB->ICSR & SCB_ICSR_PENDSTSET_Msk)||((SCB->SHCSR & SCB_SHCSR_SYSTICKACT_Msk)))  ;
+        count2  = GetTickCount();
+    } while ((pend != pend2) || (count != count2) || (ticks < ticks2));
 
+    return ((count+pend) * 1000) + (((SysTick->LOAD  - ticks)*(1048576/(F_CPU/1000000)))>>20) ; 
 
+}
+
+uint32_t millis(void)
+{
+	return GetTickCount();
+}

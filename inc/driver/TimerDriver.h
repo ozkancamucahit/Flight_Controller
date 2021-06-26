@@ -68,6 +68,25 @@ void tc_capture_initialize( uint16_t us_id_TC );
 void tc_waveform_initialize(uint16_t id, const waveconfig_t* wave, 
 uint8_t config_idx);
 
+/**
+ * \brief F_CPU / 1000 1ms period
+ */
+// static inline uint32_t SysTick_Config(uint32_t ticks)
+// {
+//   if (ticks > SysTick_LOAD_RELOAD_Msk)  return (1);            /* Reload value impossible */
 
+//   SysTick->LOAD  = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;      /* set reload register */
+//   NVIC_SetPriority (SysTick_IRQn, (1<<__NVIC_PRIO_BITS) - 1);  /* set Priority for Cortex-M0 System Interrupts */
+//   SysTick->VAL   = 0;                                          /* Load the SysTick Counter Value */
+//   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+//                    SysTick_CTRL_TICKINT_Msk   |
+//                    SysTick_CTRL_ENABLE_Msk;                    /* Enable SysTick IRQ and SysTick Timer */
+//   return (0);                                                  /* Function successful */
+// }
+
+uint32_t micros( void );
+uint32_t millis(void);
+extern void TimeTick_Increment( void );
+extern uint32_t GetTickCount( void ) ;
 
 #endif /* TIMERDRIVER_H_ */

@@ -13,10 +13,10 @@ volatile void *volatile stdio_base;
 int (*ptr_put)(void volatile*, char);
 
 
-int __attribute__((weak))
+int 
 _write (int file, const char *ptr, int len);
 
-int __attribute__((weak))
+int 
 _write (int file, const char *ptr, int len)
 {
 	int nChars = 0;
